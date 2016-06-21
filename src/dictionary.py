@@ -206,8 +206,8 @@ class Zhi(Xing, YinYang):
         if len(d_id) != 1:
             d_id = self.to_id(d_id)
 
-        Xing.__init__(self, Gan.relations[d_id][0])
-        YinYang.__init__(self, Gan.relations[d_id][1])
+        Xing.__init__(self, Zhi.relations[d_id][0])
+        YinYang.__init__(self, Zhi.relations[d_id][1])
         switch = {
             '1': '子',
             '2': '丑',
@@ -238,6 +238,63 @@ class PillarBase(object):
             self.zhi = z
         else:
             raise (TypeError, u"PillarBase __init__ need Gan(%s) and Zhi(%s)." % (type(g), type(z)))
+
+    @staticmethod
+    def get_year_pillar(d):
+        """
+            获取年柱
+        :param d: 日期 1991010113
+        """
+        ed = (int(d[:4])-1924) % 60 + 1
+        return g_eight_60[ed][0:3], g_eight_60[ed][3:]
+
+    @staticmethod
+    def get_month_pillar(d):
+        year_pillar = PillarBase.get_year_pillar(d)
+        temp = int(d[4:6])-10
+        if temp < 0:
+            temp += 12
+        month_zhi = str(temp % 12)
+        year_pillar_gan = year_pillar[0]
+        month_gan = 1
+        if year_pillar_gan in ('甲', '己'):
+            month_gan = 3
+        elif year_pillar_gan in ('乙', '庚'):
+            month_gan = 5
+        elif year_pillar_gan in ('丙', '辛'):
+            month_gan = 7
+        elif year_pillar_gan in ('丁', '壬'):
+            month_gan = 9
+
+        for i in range(1, int(d[4:6])):
+            month_gan += 1
+            if month_gan == 11:
+                month_gan = 1
+
+        if month_zhi == '10':
+            month_zhi = 'A'
+        elif month_zhi == '11':
+            month_zhi = 'B'
+        elif month_zhi == '12':
+            month_zhi = '0'
+        return Gan(str(month_gan)).to_chinese(), Zhi(month_zhi).to_chinese()
+
+    @staticmethod
+    def get_day_pillar(d):
+        st = datetime.datetime.strptime("19240111", "%Y%m%d")
+        ed = datetime.datetime.strptime(d[:8], "%Y%m%d")
+        days = (ed-st).days % 60 + 1
+        return g_eight_60[days][0:3], g_eight_60[days][3:]
+
+    @staticmethod
+    def get_hour_pillar(d):
+        """
+            甲己还加甲，乙庚丙做初。
+            丙辛从戊起，丁壬庚子居。
+            戊癸何处去？壬子是真途。
+            23~1:1 >>>>
+        """
+        return "", ""
 
 
 class YearPillar(PillarBase):
@@ -285,4 +342,8 @@ class People(object):
         }
 
 if __name__ == '__main__':
-    pass
+    init_data()
+    print "".join(PillarBase.get_year_pillar('1991112715'))
+    print "".join(PillarBase.get_month_pillar('1991112715'))
+    print "".join(PillarBase.get_day_pillar('1991112715'))
+    print "".join(PillarBase.get_hour_pillar('1991112715'))
