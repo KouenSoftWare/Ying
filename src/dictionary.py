@@ -294,7 +294,51 @@ class PillarBase(object):
             戊癸何处去？壬子是真途。
             23~1:1 >>>>
         """
-        return "", ""
+        hour = int(d[8:10])
+        switch = dict()
+        zhi_serial = 1
+        for i in range(1, 25):
+            if i == 24:
+                key = 0
+            else:
+                key = i
+
+            if key % 2 == 1:
+                zhi_serial += 1
+
+            if zhi_serial == 13:
+                zhi_serial = 1
+
+            value = str(zhi_serial)
+            if zhi_serial == 10:
+                value = 'A'
+            elif zhi_serial == 11:
+                value = 'B'
+            elif zhi_serial == 12:
+                value = '0'
+            switch[key] = value
+
+        day_pillar_gan = PillarBase.get_day_pillar(d)[0]
+
+        gan = 9
+        if day_pillar_gan in ('甲', '己'):
+            gan = 1
+        elif day_pillar_gan in ('乙', '庚'):
+            gan = 3
+        elif day_pillar_gan in ('丙', '辛'):
+            gan = 5
+        elif day_pillar_gan in ('丁', '壬'):
+            gan = 7
+
+        ed = hour / 2
+        if hour % 2 == 1:
+            ed += 1
+        for i in range(0, ed):
+            gan += 1
+            if gan == 11:
+                gan = 1
+
+        return Gan(str(gan)).to_chinese(), Zhi(switch[hour]).to_chinese()
 
 
 class YearPillar(PillarBase):
