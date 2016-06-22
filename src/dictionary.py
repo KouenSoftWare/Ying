@@ -246,7 +246,10 @@ class PillarBase(object):
         :param d: 日期 1991010113
         """
         ed = (int(d[:4])-1924) % 60 + 1
-        return g_eight_60[ed][0:3], g_eight_60[ed][3:]
+        try:
+            return g_eight_60[ed][0:3], g_eight_60[ed][3:]
+        except KeyError:
+            raise (KeyError, u"dictionary must be first run init_data().")
 
     @staticmethod
     def get_month_pillar(d):
@@ -284,7 +287,10 @@ class PillarBase(object):
         st = datetime.datetime.strptime("19240111", "%Y%m%d")
         ed = datetime.datetime.strptime(d[:8], "%Y%m%d")
         days = (ed-st).days % 60 + 1
-        return g_eight_60[days][0:3], g_eight_60[days][3:]
+        try:
+            return g_eight_60[days][0:3], g_eight_60[days][3:]
+        except KeyError:
+            raise (KeyError, u"dictionary must be first run init_data().")
 
     @staticmethod
     def get_hour_pillar(d):
@@ -346,34 +352,35 @@ class YearPillar(PillarBase):
         年柱
     """
     def __init__(self, d):
-        """
-            传入时间,进行初始化
-        :param d:%Y%m%d%H
-        """
-        # g, z = PillarBase.get_year_gan_zhi(d)
-        # PillarBase.__init__(self, Gan(g), Zhi(g))
-        pass
+        g, z = PillarBase.get_year_pillar(d)
+        PillarBase.__init__(self, Gan(g), Zhi(g))
 
 
 class MonthPillar(PillarBase):
     """
         月柱
     """
-    pass
+    def __init__(self, d):
+        g, z = PillarBase.get_month_pillar(d)
+        PillarBase.__init__(self, Gan(g), Zhi(g))
 
 
 class DayPillar(PillarBase):
     """
         日柱
     """
-    pass
+    def __init__(self, d):
+        g, z = PillarBase.get_day_pillar(d)
+        PillarBase.__init__(self, Gan(g), Zhi(g))
 
 
 class HourPillar(PillarBase):
     """
         时柱
     """
-    pass
+    def __init__(self, d):
+        g, z = PillarBase.get_hour_pillar(d)
+        PillarBase.__init__(self, Gan(g), Zhi(g))
 
 
 class People(object):
@@ -387,7 +394,3 @@ class People(object):
 
 if __name__ == '__main__':
     init_data()
-    print "".join(PillarBase.get_year_pillar('1991112715'))
-    print "".join(PillarBase.get_month_pillar('1991112715'))
-    print "".join(PillarBase.get_day_pillar('1991112715'))
-    print "".join(PillarBase.get_hour_pillar('1991112715'))
