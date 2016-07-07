@@ -229,15 +229,15 @@ class Zhi(Xing, YinYang):
 
 
 class PillarBase(object):
-    gan = None
-    zhi = None
-
     def __init__(self, g, z):
         if isinstance(g, Gan) and isinstance(z, Zhi):
             self.gan = g
             self.zhi = z
         else:
             raise (TypeError, u"PillarBase __init__ need Gan(%s) and Zhi(%s)." % (type(g), type(z)))
+
+    def __str__(self):
+        return "%s,%s" % (self.gan, self.zhi)
 
     @staticmethod
     def get_year_pillar(d):
@@ -353,7 +353,7 @@ class YearPillar(PillarBase):
     """
     def __init__(self, d):
         g, z = PillarBase.get_year_pillar(d)
-        PillarBase.__init__(self, Gan(g), Zhi(g))
+        PillarBase.__init__(self, Gan(g), Zhi(z))
 
 
 class MonthPillar(PillarBase):
@@ -362,7 +362,7 @@ class MonthPillar(PillarBase):
     """
     def __init__(self, d):
         g, z = PillarBase.get_month_pillar(d)
-        PillarBase.__init__(self, Gan(g), Zhi(g))
+        PillarBase.__init__(self, Gan(g), Zhi(z))
 
 
 class DayPillar(PillarBase):
@@ -371,7 +371,7 @@ class DayPillar(PillarBase):
     """
     def __init__(self, d):
         g, z = PillarBase.get_day_pillar(d)
-        PillarBase.__init__(self, Gan(g), Zhi(g))
+        PillarBase.__init__(self, Gan(g), Zhi(z))
 
 
 class HourPillar(PillarBase):
@@ -380,17 +380,24 @@ class HourPillar(PillarBase):
     """
     def __init__(self, d):
         g, z = PillarBase.get_hour_pillar(d)
-        PillarBase.__init__(self, Gan(g), Zhi(g))
+        PillarBase.__init__(self, Gan(g), Zhi(z))
 
 
 class People(object):
     def __init__(self, d):
-        self._eight = {
-            'year': YearPillar(d),
-            'month': MonthPillar(d),
-            'day': DayPillar(d),
-            'hour': HourPillar(d)
-        }
+        self.year = YearPillar(d)
+        self.month = MonthPillar(d)
+        self.day = DayPillar(d)
+        self.hour = HourPillar(d)
+
+    def __str__(self):
+        return str(self.year)
+
 
 if __name__ == '__main__':
     init_data()
+    print People("1991112715")
+    # print YearPillar("1991112715")
+    # print MonthPillar("1991112715")
+    # print DayPillar("1991112715")
+    # print HourPillar("1991112715")
