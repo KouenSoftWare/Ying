@@ -168,16 +168,16 @@ class Gan(Xing, YinYang):
         Xing.__init__(self, Gan.relations[d_id][0])
         YinYang.__init__(self, Gan.relations[d_id][1])
         switch = {
-            '1': '甲',
-            '2': '乙',
-            '3': '丙',
-            '4': '丁',
-            '5': '戊',
-            '6': '己',
-            '7': '庚',
-            '8': '辛',
-            '9': '壬',
-            '0': '葵'
+            '1': u'甲',
+            '2': u'乙',
+            '3': u'丙',
+            '4': u'丁',
+            '5': u'戊',
+            '6': u'己',
+            '7': u'庚',
+            '8': u'辛',
+            '9': u'壬',
+            '0': u'葵'
         }
         self.set_init(d_id, switch)
 
@@ -209,18 +209,18 @@ class Zhi(Xing, YinYang):
         Xing.__init__(self, Zhi.relations[d_id][0])
         YinYang.__init__(self, Zhi.relations[d_id][1])
         switch = {
-            '1': '子',
-            '2': '丑',
-            '3': '寅',
-            '4': '卯',
-            '5': '辰',
-            '6': '巳',
-            '7': '午',
-            '8': '未',
-            '9': '申',
-            'A': '酉',
-            'B': '戌',
-            '0': '亥'
+            '1': u'子',
+            '2': u'丑',
+            '3': u'寅',
+            '4': u'卯',
+            '5': u'辰',
+            '6': u'巳',
+            '7': u'午',
+            '8': u'未',
+            '9': u'申',
+            'A': u'酉',
+            'B': u'戌',
+            '0': u'亥'
         }
         self.set_init(d_id, switch)
 
@@ -237,7 +237,7 @@ class PillarBase(object):
         """
         ed = (int(d[:4])-1924) % 60 + 1
         try:
-            return g_eight_60[ed][0:3], g_eight_60[ed][3:]
+            return g_eight_60[ed][0:1], g_eight_60[ed][1:]
         except KeyError:
             raise (KeyError, u"dictionary must be first run init_data().")
 
@@ -278,7 +278,7 @@ class PillarBase(object):
         ed = datetime.datetime.strptime(d[:8], "%Y%m%d")
         days = (ed-st).days % 60 + 1
         try:
-            return g_eight_60[days][0:3], g_eight_60[days][3:]
+            return g_eight_60[days][0:1], g_eight_60[days][1:]
         except KeyError:
             raise (KeyError, u"dictionary must be first run init_data().")
 
