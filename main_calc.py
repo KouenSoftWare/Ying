@@ -22,6 +22,24 @@ import datetime
 from pprint import pprint
 from src.infomations import QUARTER, DICT, ZHI, GAN, XING
 from src.dictionary import PillarBase, init_data
+import copy
+
+
+def is_hurt(dictCond, positions):
+    """
+        位置中的八字,是否有受到刑冲
+    :param dictCond: 所有组合
+    :param positions: 需要被判断的组合
+    :return: Boolean
+    """
+    setBadPos = set()
+    for t in (18, 19):
+        for pos in dictCond.get(t, []):
+            setBadPos.add(pos)
+    for pos in positions[:-1]:
+        if pos in setBadPos:
+            return False
+    return True
 
 
 def cimate_analyze(eight):
@@ -174,6 +192,8 @@ def elements_combination(eight):
                 _p = set()
                 _p.add(_container.index(_cond2))
                 _p.add(_container.index(_cond1))
+                if len(_p) == 1:
+                    _p.add(_container.index(_cond2, _container.index(_cond2)+1))
                 _p = list(_p)
                 if _x:
                     _p.append(_x)
@@ -229,19 +249,153 @@ def elements_combination(eight):
     return combination
 
 
-def elements_evolution(five_xing, combination):
+def elements_evolution(eight, five_xing, combination):
     """
         判断组合的有效性, 给出组合后的演化结果
     :param five_xing:原始八字的五行组合,来自cimate_analyze[0]
     :param combination: 所有组合,来自elements_combination
     :return: five_xing->演化后的结果, 总体五行力量比例
     """
+    dictCombination = dict()
     for item_comb in combination:
-        if item_comb[0] > 10:  # Y:地支 N:天干
-            pass
-        else:
-            pass
-    return ""
+        if not dictCombination.get(item_comb[0]):
+            dictCombination[item_comb[0]] = list()
+        dictCombination[item_comb[0]].append(item_comb[1])
+
+    xingRate = {
+        'X1': 0.0,
+        'X2': 0.0,
+        'X3': 0.0,
+        'X4': 0.0,
+        'X0': 0.0
+    }
+    xingEvolution = copy.deepcopy(five_xing)
+    single = [[0]*len(five_xing[0]), [0]*len(five_xing[0])]
+    for item_comb in combination:
+        if item_comb[0] in (11, 12):
+            positions = item_comb[1]
+            iCond = 0
+            for i in positions[:-1]:
+                if five_xing[0][i] == positions[-1]:
+                    iCond += 1
+            if iCond >= 1:
+                if item_comb[0] == 11 or (item_comb[0] == 12 and is_hurt(dictCombination, positions)):
+                    for i in positions[:-1]:
+                        xingEvolution[1][i] = positions[-1]
+                elif item_comb[0] == 12:
+                    for i in positions[:-1]:
+                        single[1][i] = 1
+
+        if item_comb[0] == 13:
+            positions = item_comb[1]
+            if positions[1]-positions[0] == 1:
+                if positions[2] == five_xing[0][positions[0]] and \
+                   positions[2] == five_xing[0][positions[1]]:
+                    xingEvolution[1][positions[0]] = positions[2]
+                    xingEvolution[1][positions[1]] = positions[2]
+                else:
+                    single[1][positions[0]] = 1
+                    single[1][positions[1]] = 1
+
+        if item_comb[0] == 14:
+            positions = item_comb[1]
+            if positions[2] == five_xing[0][positions[0]] and \
+               positions[2] == five_xing[0][positions[1]] and \
+               (five_xing[1][1] == positions[2] or five_xing[1][1] == XING['FATHER'][positions[2]]) and \
+               is_hurt(dictCombination, positions):
+                xingEvolution[1][positions[0]] = positions[2]
+                xingEvolution[1][positions[1]] = positions[2]
+            else:
+                single[1][positions[0]] = 1
+                single[1][positions[1]] = 1
+
+    total = len(single[0])*2.0
+
+    for i in range(5):
+        _k = "X%d" % i
+        xingRate[_k] = (xingEvolution[0].count(_k) + xingEvolution[1].count(_k))/total
+
+    quator = list(QUARTER[eight[1][1]]['4J'])
+
+    for key in xingRate.keys():
+        xingRate[key] = round(xingRate[key], 3)
+
+    eight_xing_rate = [[0]*len(single[0]), [0]*len(single[0])]
+    y = len(single[0])
+    for i in range(2):
+        for j in range(y):
+            xing_total = five_xing[0].count(five_xing[i][j])+five_xing[1].count(five_xing[i][j])
+            eight_xing_rate[i][j] = xingRate[five_xing[i][j]]/xing_total
+    wait_fen = [0.0, 0.0]
+
+    paichu = dict()
+    for i in range(2):
+        for j in range(y):
+            if single[i][j]:
+                if not paichu.get(five_xing[i][j]):
+                    paichu[five_xing[i][j]] = 0
+                paichu[five_xing[i][j]] += 1
+
+    for i in range(2):
+        for j in range(y):
+            if not single[i][j]:
+                if quator.index(five_xing[i][j]) == 4:
+                    eight_xing_rate[i][j] /= 2
+                    wait_fen[0] += (eight_xing_rate[i][j]/3*2)
+                    wait_fen[1] += (eight_xing_rate[i][j]/3)
+                if quator.index(five_xing[i][j]) == 3:
+                    eight_xing_rate[i][j] /= 4
+                    wait_fen[0] += (eight_xing_rate[i][j]*2)
+                    wait_fen[1] += (eight_xing_rate[i][j])
+
+    for i in range(2):
+        for j in range(y):
+            if not single[i][j]:
+                xing_total = five_xing[0].count(five_xing[i][j])+five_xing[1].count(five_xing[i][j])
+                xing_total -= paichu.get(five_xing[i][j], 0)
+                if quator.index(five_xing[i][j]) == 0:
+                    eight_xing_rate[i][j] += (wait_fen[0]/xing_total)
+                if quator.index(five_xing[i][j]) == 1:
+                    eight_xing_rate[i][j] += (wait_fen[1]/xing_total)
+
+    # 先判断谁是0, 然后把剩下的比例,换个它的FATHER,平均(统计是0的总数)
+    is_zero = list()
+    for i in xingRate.keys():
+        if xingRate[i] == 0.0:
+            is_zero.append(i)
+
+    fathers = list()
+    for i in is_zero:
+        fathers.append(XING['FATHER'][i])
+
+    divisor = 0.0
+    for i in range(2):
+        for j in range(y):
+            if five_xing[i][j] in fathers and not single[i][j]:
+                divisor += 1.0
+
+    surplus = (1.0 - sum(eight_xing_rate[0])-sum(eight_xing_rate[1]))
+    for i in range(2):
+        for j in range(y):
+            if five_xing[i][j] in fathers and not single[i][j]:
+                eight_xing_rate[i][j] += (surplus/divisor)
+
+    for i in range(2):
+        for j in range(y):
+            eight_xing_rate[i][j] = round(eight_xing_rate[i][j], 3)
+
+    xingRateEvo = {
+        'X0': 0.0,
+        'X1': 0.0,
+        'X2': 0.0,
+        'X3': 0.0,
+        'X4': 0.0
+    }
+    for i in range(2):
+        for j in range(y):
+            xingRateEvo[five_xing[i][j]] += eight_xing_rate[i][j]
+
+    return xingEvolution, eight_xing_rate, xingRate, xingRateEvo
 
 
 def explain():
@@ -265,7 +419,7 @@ if __name__ == '__main__':
         col_eight[1].append(DICT['NAME'][_i_[1]])
 
     level_3 = elements_combination(col_eight)
-    level_4 = elements_evolution(level_1[0], level_3)
+    level_4 = elements_evolution(col_eight, level_1[0], level_3)
 
     pprint(col_eight)
     print
