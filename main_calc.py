@@ -21,7 +21,7 @@
 import datetime
 from pprint import pprint
 from src.infomations import QUARTER, DICT, ZHI, GAN, XING
-from src.dictionary import PillarBase, init_data
+from src.dictionary import PillarBase, init_data, get_eight_all
 import copy
 
 
@@ -35,14 +35,16 @@ def is_hurt(dictCond, positions):
     setBadPos = set()
     for t in (18, 19):
         for pos in dictCond.get(t, []):
-            setBadPos.add(pos)
+            for i in pos:
+                if isinstance(i, int):
+                    setBadPos.add(i)
     for pos in positions[:-1]:
         if pos in setBadPos:
             return False
     return True
 
 
-def cimate_analyze(eight):
+def cimate_analyze(eight, d_date):
     """
         调候分析
     :param eight: 八字
@@ -58,20 +60,10 @@ def cimate_analyze(eight):
     """
     birthday_month = DICT["NAME"][eight[1][1]]
     quater_info = QUARTER[birthday_month]
-    xing_info = [
-        [
-            GAN['XING'][DICT["NAME"][eight[0][0]]],
-            GAN['XING'][DICT["NAME"][eight[1][0]]],
-            GAN['XING'][DICT["NAME"][eight[2][0]]],
-            GAN['XING'][DICT["NAME"][eight[3][0]]]
-        ],
-        [
-            ZHI['XING'][DICT["NAME"][eight[0][1]]],
-            ZHI['XING'][DICT["NAME"][eight[1][1]]],
-            ZHI['XING'][DICT["NAME"][eight[2][1]]],
-            ZHI['XING'][DICT["NAME"][eight[3][1]]]
-        ]
-    ]
+    xing_info = [list(), list()]
+    for i in range(len(eight)):
+        xing_info[0].append(GAN['XING'][DICT["NAME"][eight[i][0]]])
+        xing_info[1].append(ZHI['XING'][DICT["NAME"][eight[i][1]]])
     price_total = 0
     xing_influences = dict()
     like = []
@@ -83,10 +75,7 @@ def cimate_analyze(eight):
         elif q_price < 0:
             n_like.append(q_xing)
 
-    if (d.month == 2 and d.day <= 4) or (d.month == 1 and d.day <= 21):
-        xing_influences['X0'] = -1
-    elif (d.month == 2 and d.day <= 4) or (d.month == 1 and d.day <= 21):
-        xing_influences['X0'] = -1
+    # (*)判断条件:距离立秋,立夏,立冬,立春 日期是否符合条件, 判断5X喜忌,
 
     for q_xing, q_price in quater_info['5X']:
         if q_price != 0:
@@ -175,7 +164,13 @@ def elements_combination(eight):
     combination = set()
 
     def _(_cond1, _cond2, _container, _type, _x=None):
-        if _cond2 and _cond2 in _container:
+        _f = False
+        if _cond2 == _cond1 and _container.count(_cond2) > 1:
+            _f = True
+        elif _cond2 != _cond1:
+            _f = True
+
+        if _cond2 and _cond2 in _container and _f:
             if _container.count(_cond2) > 1:
                 _cond2_pos = [-1]
                 for _i in range(_container.count(_cond2)):
@@ -200,7 +195,7 @@ def elements_combination(eight):
                 combination.add((_type, tuple(_p)))
 
     for gan in eight[0]:
-        _(gan, GAN['CLASH'][gan], eight[0], 1)
+        _(gan, GAN['CLASH'].get(gan), eight[0], 1)
         _(gan, GAN['MERGE'][gan][0], eight[0], 2, GAN['MERGE'][gan][1])
 
     for zhi in eight[1]:
@@ -215,7 +210,9 @@ def elements_combination(eight):
             p = set()
             for i in part[:-1]:
                p.add(eight[1].index(i))
-            p.add(0, eight[1].index(zhi))
+            p.add(eight[1].index(zhi))
+            p = list(p)
+            p.append(part[-1])
             combination.add((11, tuple(p)))
 
         part = ZHI['MERGE3'][zhi]
@@ -236,7 +233,9 @@ def elements_combination(eight):
             p = set()
             for i in part[:-1]:
                p.add(eight[1].index(i))
-            p.add(0, eight[1].index(zhi))
+            p.add(eight[1].index(zhi))
+            p = list(p)
+            p.append(part[-1])
             combination.add((12, tuple(p)))
 
         _(zhi, ZHI['MERGE6'][zhi][0], eight[1], 13, ZHI['MERGE6'][zhi][1])
@@ -257,6 +256,7 @@ def elements_evolution(eight, five_xing, combination):
     :return: five_xing->演化后的结果, 总体五行力量比例
     """
     dictCombination = dict()
+    listSuccessCombination = list()
     for item_comb in combination:
         if not dictCombination.get(item_comb[0]):
             dictCombination[item_comb[0]] = list()
@@ -271,43 +271,69 @@ def elements_evolution(eight, five_xing, combination):
     }
     xingEvolution = copy.deepcopy(five_xing)
     single = [[0]*len(five_xing[0]), [0]*len(five_xing[0])]
+    userPos = single
+    badComb = dict()
+    setBadCombPos = set()
     for item_comb in combination:
+        positions = item_comb[1]
+
         if item_comb[0] in (11, 12):
-            positions = item_comb[1]
             iCond = 0
-            for i in positions[:-1]:
+            for i in range(len(five_xing[0])):
                 if five_xing[0][i] == positions[-1]:
                     iCond += 1
-            if iCond >= 1:
-                if item_comb[0] == 11 or (item_comb[0] == 12 and is_hurt(dictCombination, positions)):
-                    for i in positions[:-1]:
-                        xingEvolution[1][i] = positions[-1]
-                elif item_comb[0] == 12:
-                    for i in positions[:-1]:
-                        single[1][i] = 1
+
+            if iCond >= 1 and is_hurt(dictCombination, positions) and \
+               not userPos[1][positions[0]] and not userPos[1][positions[1]] and not userPos[1][positions[2]]:
+                for i in positions[:-1]:
+                    xingEvolution[1][i] = positions[-1]
+                    userPos[1][i] = 1
+                listSuccessCombination.append(item_comb)
+            else:
+                for i in positions[:-1]:
+                    single[1][i] = 1
 
         if item_comb[0] == 13:
-            positions = item_comb[1]
             if positions[1]-positions[0] == 1:
-                if positions[2] == five_xing[0][positions[0]] and \
-                   positions[2] == five_xing[0][positions[1]]:
+                if (positions[2] == five_xing[0][positions[0]] or positions[2] == five_xing[0][positions[1]]) and \
+                   not userPos[1][positions[0]] and \
+                   not userPos[1][positions[1]]:
                     xingEvolution[1][positions[0]] = positions[2]
                     xingEvolution[1][positions[1]] = positions[2]
+                    listSuccessCombination.append(item_comb)
+                    userPos[1][positions[0]] = 1
+                    userPos[1][positions[1]] = 1
                 else:
                     single[1][positions[0]] = 1
                     single[1][positions[1]] = 1
 
         if item_comb[0] == 14:
-            positions = item_comb[1]
-            if positions[2] == five_xing[0][positions[0]] and \
-               positions[2] == five_xing[0][positions[1]] and \
+            if (positions[2] == five_xing[0][positions[0]] or positions[2] == five_xing[0][positions[1]]) and \
                (five_xing[1][1] == positions[2] or five_xing[1][1] == XING['FATHER'][positions[2]]) and \
-               is_hurt(dictCombination, positions):
+               is_hurt(dictCombination, positions) and \
+               not userPos[1][positions[0]] and \
+               not userPos[1][positions[1]]:
                 xingEvolution[1][positions[0]] = positions[2]
                 xingEvolution[1][positions[1]] = positions[2]
+                listSuccessCombination.append(item_comb)
+                userPos[1][positions[0]] = 1
+                userPos[1][positions[1]] = 1
             else:
                 single[1][positions[0]] = 1
                 single[1][positions[1]] = 1
+
+        if item_comb[0] in (15, 16, 17, 18, 19):
+            if badComb.get(positions[0]) and badComb[positions[0]][0] > positions[1]:
+                badComb[positions[0]] = (positions[1], item_comb[0])
+
+            elif not badComb.get(positions[0]):
+                badComb[positions[0]] = (positions[1], item_comb[0])
+
+    for i in badComb.keys():
+        if i not in setBadCombPos and badComb[i][0] not in setBadCombPos:
+            setBadCombPos.add(badComb[i][0])
+            setBadCombPos.add(i)
+            listSuccessCombination.append([badComb[i][1], [i, badComb[i][0]]])
 
     total = len(single[0])*2.0
 
@@ -380,10 +406,6 @@ def elements_evolution(eight, five_xing, combination):
             if five_xing[i][j] in fathers and not single[i][j]:
                 eight_xing_rate[i][j] += (surplus/divisor)
 
-    for i in range(2):
-        for j in range(y):
-            eight_xing_rate[i][j] = round(eight_xing_rate[i][j], 3)
-
     xingRateEvo = {
         'X0': 0.0,
         'X1': 0.0,
@@ -395,7 +417,65 @@ def elements_evolution(eight, five_xing, combination):
         for j in range(y):
             xingRateEvo[five_xing[i][j]] += eight_xing_rate[i][j]
 
-    return xingEvolution, eight_xing_rate, xingRate, xingRateEvo
+    for i in range(2):
+        for j in range(y):
+            eight_xing_rate[i][j] = round(eight_xing_rate[i][j], 3)
+
+    for i in xingRateEvo.keys():
+        xingRateEvo[i] = round(xingRateEvo[i], 3)
+    return xingEvolution, eight_xing_rate, single, xingRate, xingRateEvo, listSuccessCombination
+
+
+def calc_score(xingEvolution, eight_xing_rate, xing_like, successComb):
+    score = 0.0
+    opera = {
+        xing_like[0]: 2,
+        XING['FATHER'][xing_like[0]]: 1,
+        XING['SON'][xing_like[0]]: -0.5,
+        XING['WIFE'][xing_like[0]]: -1,
+        XING['HUSBAND'][xing_like[0]]: -2
+    }
+
+    otherScore = dict()
+    for i in successComb:
+        rate = 1
+        if i[0] == 16:
+            rate = 0.65
+        elif i[0] == 17:
+            rate = 0.8
+        elif i[0] == 18:
+            rate = 0.5
+        elif i[0] == 19:
+            rate = 0.4
+        elif i[0] == 11:
+            rate = 3
+        elif i[0] == 12:
+            rate = 2.2
+        elif i[0] == 13:
+            rate = 1.7
+        elif i[0] == 14:
+            rate = 1.4
+
+        otherScore[i[1][0]] = rate
+        otherScore[i[1][1]] = rate
+
+    xing_power = {
+        'X0': 0.0,
+        'X1': 0.0,
+        'X2': 0.0,
+        'X3': 0.0,
+        'X4': 0.0
+    }
+    for i in range(2):
+        for j in range(len(xingEvolution[0])):
+            xing_power[xingEvolution[i][j]] += (eight_xing_rate[i][j] * otherScore.get(j, 1) * 100)
+
+    for i in xing_power.keys():
+        score += (opera[i] * xing_power[i])
+
+    score = round((200 + score), 1)
+
+    return score, xing_power
 
 
 def explain():
@@ -403,14 +483,12 @@ def explain():
 
 if __name__ == '__main__':
     init_data()
-    eight = list()
-    birth = '1991112716'
-    eight.append(PillarBase.get_year_pillar(birth))
-    eight.append(PillarBase.get_month_pillar(birth))
-    eight.append(PillarBase.get_day_pillar(birth))
-    eight.append(PillarBase.get_hour_pillar(birth))
-    d = datetime.datetime.strptime(birth, '%Y%m%d%H')
-    level_1 = cimate_analyze(eight)
+    t_birth = datetime.datetime.strptime("1992010116", "%Y%m%d%H")
+    t_find_date = datetime.datetime.strptime("20120801", "%Y%m%d")
+    eight = get_eight_all(t_birth, t_find_date, is_nong=False)
+    d = datetime.datetime.strptime("1991112716", '%Y%m%d%H')
+
+    level_1 = cimate_analyze(eight, d)
     level_2 = elements_analyze(level_1[0])
 
     col_eight = [list(), list()]
@@ -420,6 +498,7 @@ if __name__ == '__main__':
 
     level_3 = elements_combination(col_eight)
     level_4 = elements_evolution(col_eight, level_1[0], level_3)
+    level_5 = calc_score(level_4[0], level_4[1], level_1[2], level_4[5])
 
     pprint(col_eight)
     print
@@ -430,4 +509,6 @@ if __name__ == '__main__':
     pprint(level_3)
     print
     pprint(level_4)
+    print
+    pprint(level_5)
     print
